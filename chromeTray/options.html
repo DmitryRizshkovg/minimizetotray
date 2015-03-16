@@ -5,7 +5,7 @@
 		<title>Minimize to tray - Options</title>
 		<link href="options.css" rel="stylesheet" type="text/css" />
 	</head>
-	<body onload="init();">
+	<body>
 		<div class="menu">
 			<label><span id="lngLanguage">Language</span></label>
 			<select id="language" style="width: 200px;" onchange="onLanguageSelected();"></select>
@@ -106,15 +106,15 @@
 		<br/>
 		<div class="menu">
 			<div class="buttons">
-				<input type="button" id="lngSave" value="Save" onclick="return onSave();"/>
-				<input type="button" id="lngExit" value="Exit" onclick="return onExit();"/>
+				<input type="button" id="lngSave" value="Save" />
+				<input type="button" id="lngExit" value="Exit" />
 			</div>
 		</div>
-		
-		<script type="text/javascript" src="options.js"></script>
 		
 		<script type="text/javascript" src="locale/en_US/options.js"></script>
 		<script type="text/javascript" src="locale/ru_RU/options.js"></script>
 		<script type="text/javascript" src="locale/es_ES/options.js"></script>
+		
+		<script type="text/javascript" src="options.js"></script>
 	</body>
 </html>

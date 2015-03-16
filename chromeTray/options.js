@@ -1,3 +1,5 @@
+init();
+
 function init()
 {
 	setSelectedValue("language", readProperty("language", "en_US"));
@@ -8,12 +10,33 @@ function init()
 	fillActionSelect('actRClick');
 	
 	doDataExchange(false);
+	
+	document.getElementById("lngSave").addEventListener("click", onSave);
+	document.getElementById("lngExit").addEventListener("click", onExit);
 }
 
 function getSelectedLanguage()
 {
 	var lang = getSelectedValue("language");
-	return eval("lang_" + lang);
+	
+	if(lang = "en_US")
+	{
+		return lang_en_US;
+	}
+	else if(lang = "es_ES")
+	{
+		return lang_es_ES;
+	}
+	else if(lang = "ru_RU")
+	{
+		return lang_ru_RU;
+	}
+	else if(lang = "tr_TR")
+	{
+		return lang_tr_TR;
+	}
+	
+	return lang_en_US;
 }
 
 function onLanguageSelected()

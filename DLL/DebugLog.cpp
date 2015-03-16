@@ -31,7 +31,7 @@ BOOL CDebugLog::Log(TCHAR *fmt, ...)
 	DWORD dwOutBuffer	= _countof(szOutBuffer);
 	DWORD dwBytesWritten;
 
-	auto va_list	argptr;
+	va_list			argptr;
 
 	time_t			rawtime		= 0;
 	struct tm 		timeinfo	= {0};

@@ -23,7 +23,7 @@ bool CJSValue::GetProperty(NPNetscapeFuncs *pBrowserFuncs, NPP pluginInstance, N
 	CHAR szIndex[10] = {0};
 	sprintf_s(szIndex, "%d", nIndex);
 
-	return GetProperty(pBrowserFuncs, pluginInstance, pObject, nIndex, varResult);
+	return GetProperty(pBrowserFuncs, pluginInstance, pObject, szIndex, varResult);
 }
 
 bool CJSValue::GetProperty(NPNetscapeFuncs *pBrowserFuncs, NPP pluginInstance, NPObject *pObject, const char* lpszProperty, int &nResult)

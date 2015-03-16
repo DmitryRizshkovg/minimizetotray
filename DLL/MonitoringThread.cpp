@@ -82,7 +82,7 @@ DWORD WINAPI CMonitoringThread::_WorketThread(LPVOID pParam)
 
 DWORD CMonitoringThread::WorketThread()
 {
-	DWORD dwSleep = 200;
+	DWORD dwSleep = 20;
 
 	do 
 	{

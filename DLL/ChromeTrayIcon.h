@@ -60,10 +60,6 @@ public:
 	void HideChromeWindow(HWND hWnd);
 	void ShowChromeWindow(HWND hWnd);
 
-	//void AddChromeWindow(int nWindowId);
-	//void RemoveChromeWindow(int nWindowId);
-	//void ChromeWindowFocusChanged();
-
 	BOOL OptionsChanged();
 
 protected:
@@ -80,7 +76,6 @@ protected:
 	void ShowContextMenu();
 
 private:
-	//virtual BOOL Worker();
 	BOOL StartMonitoring();
 	BOOL StopMonitoring();
 
@@ -91,12 +86,24 @@ private:
 	HICON GetChromeWindowIcon();
 
 	HWND FindVisibleChromeWindow();
+	BOOL FindAllChromeWindows(vector<ChromeWindow> &windows);
+
+	BOOL RegisterHotKey(LPCTSTR atomName, ATOM &id, WORD key, WORD modifier);
+	BOOL UnregisterHotKey(ATOM &id);
 
 	BOOL RegisterHotKeys();
 	void UnregisterHotKeys();
 
+	void UpdateIconTooltip(HWND hLastWnd);
+	void ShowHideTrayIcon();
+
+	void OnBossKeyPressed();
+	void OnRestoreByKeyPressed();
+
 protected:
-	ATOM					m_HotKeyId;
+	ATOM					m_HotKeyIdBoss;
+	ATOM					m_HotKeyIdRestore;
+
 	BOOL					m_bChromeIsHidded;
 
 	CMenu					m_TrayMenu;
@@ -116,7 +123,7 @@ protected:
 
 	CRITICAL_SECTION		m_csWindowsList;
 
-	CMinimizeMonitor	m_mouseMonitor;
+	CMinimizeMonitor		m_mouseMonitor;
 };
 
 extern CChromeTrayIcon	g_ChromeTrayIcon;

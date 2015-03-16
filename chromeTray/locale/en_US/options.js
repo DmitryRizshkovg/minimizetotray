@@ -44,8 +44,10 @@ function RegisterLang()
 {
 	var ctrl = document.getElementById("language");
 	
-	if(ctrl != null)
-	{
-		ctrl.add(createOption("English", "en_US"));
-	}
+	var opt = document.createElement('option');
+	
+	opt.text = "English";
+	opt.value = "en_US";
+	
+	ctrl.add(opt);
 }

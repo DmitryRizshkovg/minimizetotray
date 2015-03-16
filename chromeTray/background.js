@@ -1,5 +1,11 @@
 initPlugin();
 
+function getPlugin()
+{
+	var plugin = document.getElementById("minimize-to-tray-extension");
+	return plugin;
+}
+
 /*
 function notifyFocusChanged(windowId)
 {
@@ -10,8 +16,7 @@ function notifyFocusChanged(windowId)
 
 function notifyWindowCreated(windowId)
 {
-	var plugin = document.getElementById("minimize-to-tray-extension");
-	plugin.OnWindowCreated(windowId);
+	getPlugin().OnWindowCreated(windowId);
 }
 
 /*
@@ -24,20 +29,17 @@ function notifyWindowRemoved(windowId)
 
 function notifyOptionsChanged(windowId)
 {
-	var plugin = document.getElementById("minimize-to-tray-extension");
-	plugin.OnOptionsChanged();
+	getPlugin().OnOptionsChanged();
 }
 
 function setIcon(path)
 {
-	var plugin = document.getElementById("minimize-to-tray-extension");
-	plugin.SetIcon(path);
+	getPlugin().SetIcon(path);
 }
 
 function popupNotify(title, text)
 {
-	var plugin = document.getElementById("minimize-to-tray-extension");
-	plugin.PopupNotify(title, text);
+	getPlugin().PopupNotify(title, text);
 }
 
 function initPlugin()

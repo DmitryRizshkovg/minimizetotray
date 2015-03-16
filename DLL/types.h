@@ -11,6 +11,8 @@ typedef struct ChromeWindow
 {
 	int		nId;
 	HWND	hWnd;
+
+	BOOL	bWasVisibleBeforeBoss;
 }
 ChromeWindow;
 
@@ -20,28 +22,32 @@ typedef struct ChromeTrayIconOptions
 {
 	ChromeTrayIconOptions()
 	{
-		bHideTray				= TRUE;
+		bHideTrayIfNowWindows		= TRUE;
 
-		bMinimizeOnLeftButton	= TRUE;
-		bMinimizeOnRightButton	= FALSE;
+		bMinimizeOnLeftButton		= TRUE;
+		bMinimizeOnRightButton		= FALSE;
 		
-		actLClick				= Nothing;
-		actRClick				= ContextMenu;
-		actLDblClick			= Restore;
-		actRDblClick			= Nothing;
+		actLClick					= Nothing;
+		actRClick					= ContextMenu;
+		actLDblClick				= Restore;
+		actRDblClick				= Nothing;
 
-		bShowNewWindow			= FALSE;
-		bShowNewTab				= FALSE;
-		bShowOptions			= TRUE;
-		bShowFavorites			= FALSE;
+		bShowNewWindow				= FALSE;
+		bShowNewTab					= FALSE;
+		bShowOptions				= TRUE;
+		bShowFavorites				= FALSE;
 
-		bEnableBossKey			= FALSE;
-		wBossKey				= 0;
-		wBossModifier			= 0;
-		bBossHideTrayIcon		= FALSE;
+		bEnableBossKey				= FALSE;
+		wBossKey					= 0;
+		wBossModifier				= 0;
+		bBossHideTrayIcon			= FALSE;
+
+		bEnableRestoreByKey			= FALSE;
+		wRestoreByKeyKey			= 0;
+		wRestoreByKeyModifier		= 0;
 	}
 
-	BOOL		bHideTray;
+	BOOL		bHideTrayIfNowWindows;
 
 	BOOL		bMinimizeOnLeftButton;
 	BOOL		bMinimizeOnRightButton;
@@ -61,6 +67,10 @@ typedef struct ChromeTrayIconOptions
 	WORD		wBossKey;
 	WORD		wBossModifier;
 	BOOL		bBossHideTrayIcon;
+
+	BOOL		bEnableRestoreByKey;
+	WORD		wRestoreByKeyKey;
+	WORD		wRestoreByKeyModifier;
 }
 ChromeTrayIconOptions;
 

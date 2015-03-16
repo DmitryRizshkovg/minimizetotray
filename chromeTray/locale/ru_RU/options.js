@@ -44,5 +44,10 @@ function RegisterLang()
 {
 	var ctrl = document.getElementById("language");
 	
-	ctrl.add(createOption("Russian", "ru_RU"));
+	var opt = document.createElement('option');
+	
+	opt.text = "Russian";
+	opt.value = "ru_RU";
+	
+	ctrl.add(opt);
 }

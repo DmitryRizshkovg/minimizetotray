@@ -5,15 +5,18 @@
 
 #include "utils.h"
 
+// Chrome_WidgetWin_1
+// Chrome_WidgetWin_1
+static const TCHAR *ChromeWidgetWinClass= _T("Chrome_WidgetWin_1");
 static const TCHAR *ChromeWindowClass	= _T("Chrome_WindowImpl_0");
 static const TCHAR *ChromeWidgetClass	= _T("Chrome_WidgetWin_0");
 
-static LPCTSTR ChromeWindowClasses[]	= {ChromeWidgetClass, ChromeWindowClass};
+static LPCTSTR ChromeWindowClasses[]	= {ChromeWidgetWinClass, ChromeWidgetClass, ChromeWindowClass};
 
 static const int ContexMenuItemTextMax	= 48;
 
 CChromeTrayIcon::CChromeTrayIcon(void) : 
-		m_hIcon(NULL), m_HotKeyId(0),
+		m_hIcon(NULL), m_HotKeyIdBoss(0), m_HotKeyIdRestore(0),
 		m_bChromeIsHidded(FALSE)
 {
 	InitializeCriticalSection(&m_csWindowsList);
@@ -46,13 +49,12 @@ BOOL CChromeTrayIcon::CreateTrayIcon(HINSTANCE hInstance)
 	m_uTrayRestart = RegisterWindowMessage(TEXT("TaskbarCreated"));;
 
 	m_TrayPopup.Create();
-
 	HICON hIcon = GetChromeWindowIcon();
-
 	m_TrayPopup.SetIcon(hIcon);
 
-	//RunMonitoring();
 	StartMonitoring();
+
+	OptionsChanged();
 
 	return TRUE;
 }
@@ -68,16 +70,15 @@ BOOL CChromeTrayIcon::ReCreateTrayIcon()
 
 BOOL CChromeTrayIcon::DestroyTrayIcon()
 {
+	StopMonitoring();
+
 	UnregisterHotKeys();
 
 	EnterCriticalSection(&m_csWindowsList);
 
 	for(size_t i = 0; i < m_ChromeWindows.size(); ++i)
 	{
-		if(::IsWindow(m_ChromeWindows[i].hWnd) == FALSE)
-		{
-			ShowChromeWindow(m_ChromeWindows[i].hWnd);
-		}
+		ShowChromeWindow(m_ChromeWindows[i].hWnd);
 	}
 
 	m_ChromeWindows.clear();
@@ -88,8 +89,6 @@ BOOL CChromeTrayIcon::DestroyTrayIcon()
 	{
 		DestroyWindow();
 	}
-
-	StopMonitoring();
 
 	m_TrayIcon.Destroy();
 
@@ -208,38 +207,15 @@ LRESULT CChromeTrayIcon::OnTrayMouseCommand(UINT uMsg, WPARAM /*wParam*/, LPARAM
 	return 0;
 }
 
-LRESULT CChromeTrayIcon::OnHotKey(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+LRESULT CChromeTrayIcon::OnHotKey(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
-	if(m_bChromeIsHidded)
+	if(wParam == (WPARAM)m_HotKeyIdBoss)	
 	{
-		m_bChromeIsHidded = FALSE;
-
-		m_TrayIcon.ShowIcon();
+		OnBossKeyPressed();
 	}
-	else
+	else if(wParam == (WPARAM)m_HotKeyIdRestore)
 	{
-		m_bChromeIsHidded = TRUE;
-
-		HWND hWnd;
-
-		EnterCriticalSection(&m_csWindowsList);
-
-		for(size_t i = 0; i < m_ChromeWindows.size(); ++i)
-		{
-			hWnd = m_ChromeWindows[i].hWnd;
-
-			if(::IsWindowVisible(hWnd))
-			{
-				HideChromeWindow(hWnd);
-			}
-		}
-
-		LeaveCriticalSection(&m_csWindowsList);
-
-		if(m_options.bBossHideTrayIcon)
-		{
-			m_TrayIcon.HideIcon();
-		}
+		OnRestoreByKeyPressed();
 	}
 
 	return 0;
@@ -331,6 +307,11 @@ LRESULT CChromeTrayIcon::OnFavorites(WORD /*wNotifyCode*/, WORD wID, HWND /*hWnd
 
 void CChromeTrayIcon::ShowChromeWindow(HWND hWnd)
 {
+	if(::IsWindow(hWnd) == FALSE)
+	{
+		return;
+	}
+
 	if(::IsWindowVisible(hWnd) == FALSE)
 	{
 		::ShowWindow(hWnd, SW_SHOW);
@@ -344,29 +325,7 @@ void CChromeTrayIcon::ShowChromeWindow(HWND hWnd)
 	::SetForegroundWindow(hWnd);
 	::SetActiveWindow(hWnd);
 
-	TCHAR szTooltip[255] = {0};
-
-	EnterCriticalSection(&m_csWindowsList);
-
-	for(size_t i = 0; i < m_ChromeWindows.size(); ++i)
-	{
-		hWnd = m_ChromeWindows[i].hWnd;
-
-		if(::IsWindowVisible(hWnd) == FALSE)
-		{
-			::GetWindowText(hWnd, szTooltip, _countof(szTooltip));
-			break;
-		}
-	}
-
-	LeaveCriticalSection(&m_csWindowsList);
-
-	if(wcslen(szTooltip) == 0)
-	{
-		wcscpy_s(szTooltip, _T("Google Chrome"));
-	}
-
-	m_TrayIcon.SetTooltip(szTooltip);
+	ShowHideTrayIcon();
 }
 
 void CChromeTrayIcon::HideChromeWindow(HWND hWnd)
@@ -394,79 +353,12 @@ void CChromeTrayIcon::HideChromeWindow(HWND hWnd)
 
 	LeaveCriticalSection(&m_csWindowsList);
 
-	::GetWindowText(hWnd, szTooltip, _countof(szTooltip));
-	m_TrayIcon.SetTooltip(szTooltip);
+	UpdateIconTooltip(hWnd);
 
 	::ShowWindow(hWnd, SW_HIDE);
+
+	ShowHideTrayIcon();
 }
-/*
-void CChromeTrayIcon::AddChromeWindow(int nWindowId)
-{
-	DebugLog(_T("AddChromeWindow id=%d"), nWindowId);
-
-	HWND hChromeWindow = FindVisibleChromeWindow();
-
-	DebugLog(_T("AddChromeWindow hChromeWindow == %X"), hChromeWindow);
-
-	if(hChromeWindow == NULL)
-	{
-		return;
-	}
-
-	EnterCriticalSection(&m_csWindowsList);
-
-	for(size_t i = 0; i < m_ChromeWindows.size(); ++i)
-	{
-		if(m_ChromeWindows[i].hWnd == hChromeWindow)
-		{
-			if(m_ChromeWindows[i].nId == nWindowId)
-			{
-				LeaveCriticalSection(&m_csWindowsList);
-
-				DebugLog(_T("AddChromeWindow window already exist"), hChromeWindow);
-
-				return;
-			}
-
-			m_ChromeWindows.erase(m_ChromeWindows.begin() + i);
-
-			if(i != 0)
-			{
-				--i;
-			}
-		}
-	}
-
-	ChromeWindow chromeWnd = {nWindowId, hChromeWindow};
-	m_ChromeWindows.push_back(chromeWnd);
-
-	LeaveCriticalSection(&m_csWindowsList);
-}
-
-void CChromeTrayIcon::RemoveChromeWindow(int nWindowId)
-{
-	DebugLog(_T("RemoveChromeWindow id=%d m_ChromeWindows.size=%d"), nWindowId, m_ChromeWindows.size());
-
-	EnterCriticalSection(&m_csWindowsList);
-
-	for(size_t i = 0; i < m_ChromeWindows.size(); ++i)
-	{
-		if(m_ChromeWindows[i].nId == nWindowId)
-		{
-			m_ChromeWindows.erase(m_ChromeWindows.begin() + i);
-			break;
-		}
-	}
-
-	DebugLog(_T("RemoveChromeWindow new size=%d"),  m_ChromeWindows.size());
-
-	LeaveCriticalSection(&m_csWindowsList);
-}
-
-void CChromeTrayIcon::ChromeWindowFocusChanged()
-{
-}
-*/
 
 BOOL CChromeTrayIcon::OptionsChanged()
 {
@@ -475,20 +367,23 @@ BOOL CChromeTrayIcon::OptionsChanged()
 		return FALSE;
 	}
 
-	if(m_options.bHideTray == FALSE)
+	if(m_options.bHideTrayIfNowWindows == FALSE)
 	{
 		if(m_TrayIcon.IsIconVisible() == FALSE)
 		{
 			m_TrayIcon.ShowIcon();
 		}
 	}
+	else
+	{
+		if(m_TrayIcon.IsIconVisible() && m_ChromeWindows.empty())
+		{
+			m_TrayIcon.HideIcon();
+		}
+	}
 
 	UnregisterHotKeys();
-
-	if(m_options.bEnableBossKey)
-	{
-		RegisterHotKeys();
-	}
+	RegisterHotKeys();
 
 	return TRUE;
 }
@@ -560,124 +455,10 @@ BOOL CChromeTrayIcon::OnMouseButtonUp(const HWND &targetWindow, const DWORD &mou
 		}
 		break;
 	}
-	/*
-	HWND hChromeWnd = WindowFromPoint(coord);
-
-	if(hChromeWnd == NULL)
-	{
-		return FALSE;
-	}
-
-	TCHAR windowClass[255] = {0};
-
-	if(GetClassName(hChromeWnd, windowClass, _countof(windowClass)) == 0)
-	{
-		return FALSE;
-	}
-
-	BOOL isChromeWindow = FALSE;
-
-	for(size_t i = 0; i < _countof(ChromeWindowClasses); ++i)
-	{
-		if(_wcsicmp(ChromeWindowClasses[i], windowClass) == 0)
-		{
-			isChromeWindow = TRUE;
-
-			break;
-		}
-	}
-
-	if(isChromeWindow == FALSE)
-	{
-		DebugLog(_T("This is not Chrome window. Window class: %s\n"), windowClass);
-
-		return FALSE;
-	}
-
-	LRESULT hitTestResult = ::SendMessage(hChromeWnd, WM_NCHITTEST, 0, MAKELPARAM(coord.x, coord.y));
-
-	DebugLog(_T("hitTestResult: %lu\n"), hitTestResult);
-
-	if(mouseButton == VK_LBUTTON)
-	{
-		//if(hitTestResult == HTNOWHERE)
-		{
-			if(::IsWindowVisible(hChromeWnd) && ::IsIconic(hChromeWnd))
-			{
-				HideChromeWindow(hChromeWnd);
-				//ATLTRACE(_T("Chrome is minimized!\n"));
-			}
-		}
-	}
-	else if(mouseButton == VK_RBUTTON)
-	{
-		if(hitTestResult == HTMINBUTTON)
-		{
-			//ATLTRACE(_T("Chrome is minimized!\n"));
-			//::SendMessage(hActiveWnd, WM_SYSCOMMAND, SC_MINIMIZE, 0);
-		}
-	}
-	*/
 
 	return TRUE;
 }
 
-/*
-BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam)
-{
-	TCHAR szClassName[255] = {0};
-	GetClassName(hWnd, szClassName, _countof(szClassName));
-
-	if(_wcsicmp(szClassName, ChromeWindowClass) == 0 ||
-	   _wcsicmp(szClassName, ChromeWidgetClass) == 0)
-	{
-		if(GetWindow(hWnd, GW_CHILD) != NULL)
-		{
-			if(IsWindowVisible(hWnd) && IsIconic(hWnd))
-			{
-				((CChromeTrayIcon*)lParam)->HideChromeWindow(hWnd);
-			}
-		}
-	}
-
-	return TRUE;
-}
-
-BOOL CChromeTrayIcon::Worker()
-{
-	EnumWindows(EnumWindowsProc, (LPARAM)this);
-
-	if(m_options.bHideTray && m_bChromeIsHidded == FALSE)
-	{
-		size_t nHiddenWindows = 0;
-
-		EnterCriticalSection(&m_csWindowsList);
-
-		for(size_t i = 0; i < m_ChromeWindows.size(); ++i)
-		{
-			if(::IsWindowVisible(m_ChromeWindows[i].hWnd) == FALSE)
-			{
-				++nHiddenWindows;
-			}
-		}
-
-		LeaveCriticalSection(&m_csWindowsList);
-
-		if(nHiddenWindows == 0 && m_TrayIcon.IsIconVisible())
-		{
-			DebugLog(_T("m_ChromeWindows.size=%d"), m_ChromeWindows.size());
-
-			m_TrayIcon.HideIcon();
-		}
-		else if(nHiddenWindows != 0 && m_TrayIcon.IsIconVisible() == FALSE)
-		{
-			m_TrayIcon.ShowIcon();
-		}
-	}
-
-	return TRUE;
-}
-*/
 //////////////////////////////////////////////////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////////
@@ -724,6 +505,8 @@ void CChromeTrayIcon::RestoreAllChromeWindows()
 			ShowChromeWindow(hWnd);
 		}
 	}
+
+	UpdateIconTooltip(NULL);
 }
 
 void CChromeTrayIcon::ShowContextMenu()
@@ -845,7 +628,6 @@ void CChromeTrayIcon::ShowContextMenu()
 			}
 
 			tabs.clear();
-			//CJSMethods::GetWindowTabs(m_ChromeWindows[i].nId, tabs);
 			
 			if(tabs.size() == 0)
 			{
@@ -906,11 +688,9 @@ void CChromeTrayIcon::ShowContextMenu()
 
 		int nWindow = (int)(nIndex / 100);
 
-		//int nTab = (nIndex % 100);
-
-		//CJSMethods::SelectWindowTab(nTab);
-
 		ShowChromeWindow(m_ChromeWindows[nWindow].hWnd);
+
+		UpdateIconTooltip(NULL);
 	}
 	else
 	{
@@ -926,11 +706,16 @@ HICON CChromeTrayIcon::GetChromeWindowIcon()
 {
 	HICON hIcon = NULL;
 
-	HWND hChromeWnd = FindWindow(ChromeWindowClass, NULL);
+	HWND hChromeWnd = FindWindow(ChromeWidgetWinClass, NULL);
 
 	if(hChromeWnd == NULL)
 	{
-		hChromeWnd = FindWindow(ChromeWidgetClass, NULL);
+		hChromeWnd = FindWindow(ChromeWindowClass, NULL);
+
+		if(hChromeWnd == NULL)
+		{
+			hChromeWnd = FindWindow(ChromeWidgetClass, NULL);
+		}
 	}
 
 	if(hChromeWnd == NULL)
@@ -976,30 +761,255 @@ HWND CChromeTrayIcon::FindVisibleChromeWindow()
 	return NULL;
 }
 
-BOOL CChromeTrayIcon::RegisterHotKeys()
+BOOL CALLBACK EnumChromeWindowsProc(HWND hwnd, LPARAM lParam)
 {
-	BOOL bResult;
+	TCHAR windowClass[1024] = {0};
 
-	if(m_HotKeyId == 0)
+	if(GetClassName(hwnd, windowClass, _countof(windowClass)) == 0)
 	{
-		m_HotKeyId = GlobalAddAtom(_T("chromeTrayHotKey"));
+		return TRUE;
+	}
+
+	for(size_t i = 0; i < _countof(ChromeWindowClasses); ++i)
+	{
+		if(_wcsicmp(windowClass, ChromeWindowClasses[i]) == 0)
+		{
+			//for(size_t j = 0; j < _countof(ChromeWindowClasses); ++j)
+			{
+				//HWND chromeWindow = FindWindowEx(hwnd, NULL, ChromeWindowClasses[j], NULL);
+
+				//chromeWindow = FindWindowEx(NULL, chromeWindow, ChromeWindowClasses[i], NULL);
+
+				//if(chromeWindow != NULL)
+				if(GetParent(hwnd) == NULL)
+				{
+					ChromeWindow newWnd = {-1, hwnd};
+
+					reinterpret_cast<vector<ChromeWindow>*>(lParam)->push_back(newWnd);
+
+					break;
+				}
+			}
+
+			break;
+		}
+	}
+
+	return TRUE;
+}
+
+BOOL CChromeTrayIcon::FindAllChromeWindows(vector<ChromeWindow> &windows)
+{
+	EnumWindows(EnumChromeWindowsProc, reinterpret_cast<LPARAM>(&windows));
+
+	return TRUE;
+}
+
+BOOL CChromeTrayIcon::RegisterHotKey(LPCTSTR atomName, ATOM &id, WORD key, WORD modifier)
+{
+	if(id == 0)
+	{
+		id = GlobalAddAtom(atomName);
 	}
 	else
 	{
-		UnregisterHotKey(m_hWnd, m_HotKeyId);
+		UnregisterHotKey(id);
 	}
 
-	bResult = RegisterHotKey(m_hWnd, m_HotKeyId, m_options.wBossModifier, m_options.wBossKey);
+	return ::RegisterHotKey(m_hWnd, id, modifier, key);
+}
 
-	return bResult;
+BOOL CChromeTrayIcon::RegisterHotKeys()
+{
+	if(m_options.bEnableBossKey)
+	{
+		RegisterHotKey(_T("chromeTrayHotKeyBoss"), m_HotKeyIdBoss, m_options.wBossKey, m_options.wBossModifier);
+	}
+
+	if(m_options.bEnableRestoreByKey)
+	{
+		RegisterHotKey(_T("chromeTrayHotKeyRestore"), m_HotKeyIdRestore, m_options.wRestoreByKeyKey, m_options.wRestoreByKeyModifier);
+	}
+
+	return TRUE;
+}
+
+BOOL CChromeTrayIcon::UnregisterHotKey(ATOM &id)
+{
+	if(id != 0)
+	{
+		::UnregisterHotKey(m_hWnd, (int)id);
+		GlobalDeleteAtom(id);
+		id = 0;
+	}
+	else
+	{
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 void CChromeTrayIcon::UnregisterHotKeys()
 {
-	if(m_HotKeyId != 0)
+	UnregisterHotKey(m_HotKeyIdBoss);
+	UnregisterHotKey(m_HotKeyIdRestore);
+}
+
+void CChromeTrayIcon::UpdateIconTooltip(HWND hLastWnd)
+{
+	TCHAR szTooltip[255] = {0};
+
+	if(hLastWnd == NULL)
 	{
-		UnregisterHotKey(m_hWnd, (int)m_HotKeyId);
-		GlobalDeleteAtom(m_HotKeyId);
-		m_HotKeyId = 0;
+		EnterCriticalSection(&m_csWindowsList);
+
+		for(size_t i = 0; i < m_ChromeWindows.size(); ++i)
+		{
+			hLastWnd = m_ChromeWindows[i].hWnd;
+
+			if(::IsWindowVisible(hLastWnd) == FALSE)
+			{
+				::GetWindowText(hLastWnd, szTooltip, _countof(szTooltip));
+				break;
+			}
+		}
+
+		LeaveCriticalSection(&m_csWindowsList);
 	}
+	else
+	{
+		::GetWindowText(hLastWnd, szTooltip, _countof(szTooltip));
+	}
+
+	if(wcslen(szTooltip) == 0)
+	{
+		wcscpy_s(szTooltip, _T("Google Chrome"));
+	}
+
+	m_TrayIcon.SetTooltip(szTooltip);
+}
+
+void CChromeTrayIcon::ShowHideTrayIcon()
+{
+	BOOL hiddenWindows = FALSE;
+
+	for(size_t i = 0; i < m_ChromeWindows.size(); ++i)
+	{
+		if(::IsWindow(m_ChromeWindows[i].hWnd))
+		{
+			if(::IsWindowVisible(m_ChromeWindows[i].hWnd) == FALSE)
+			{
+				hiddenWindows = TRUE;
+				break;
+			}
+		}
+	}
+
+	if(m_options.bHideTrayIfNowWindows == TRUE)
+	{
+		if(hiddenWindows == TRUE)
+		{
+			if(m_TrayIcon.IsIconVisible() == FALSE)
+			{
+				m_TrayIcon.ShowIcon();
+			}
+		}
+		else
+		{
+			if(m_TrayIcon.IsIconVisible() == TRUE)
+			{
+				m_TrayIcon.HideIcon();
+			}
+		}
+	}
+	else
+	{
+		if(m_TrayIcon.IsIconVisible() == FALSE)
+		{
+			m_TrayIcon.ShowIcon();
+		}
+	}
+}
+
+void CChromeTrayIcon::OnBossKeyPressed()
+{
+	if(m_bChromeIsHidded)
+	{
+		m_bChromeIsHidded = FALSE;
+
+		EnterCriticalSection(&m_csWindowsList);
+
+		for(vector<ChromeWindow>::iterator it = m_ChromeWindows.begin(); it != m_ChromeWindows.end(); ++it)
+		{
+			if((*it).bWasVisibleBeforeBoss == TRUE)
+			{
+				ShowChromeWindow((*it).hWnd);
+			}
+		}
+
+		LeaveCriticalSection(&m_csWindowsList);
+
+		ShowHideTrayIcon();
+		UpdateIconTooltip(NULL);
+	}
+	else
+	{
+		m_bChromeIsHidded = TRUE;
+
+		HWND hWnd;
+
+		EnterCriticalSection(&m_csWindowsList);
+
+		m_ChromeWindows.clear();
+
+		FindAllChromeWindows(m_ChromeWindows);
+
+		for(size_t i = 0; i < m_ChromeWindows.size(); ++i)
+		{
+			hWnd = m_ChromeWindows[i].hWnd;
+
+			if(::IsWindowVisible(hWnd))
+			{
+				m_ChromeWindows[i].bWasVisibleBeforeBoss = TRUE;
+
+				HideChromeWindow(hWnd);
+			}
+			else
+			{
+				m_ChromeWindows[i].bWasVisibleBeforeBoss = FALSE;
+			}
+		}
+
+		LeaveCriticalSection(&m_csWindowsList);
+
+		if(m_options.bBossHideTrayIcon)
+		{
+			m_TrayIcon.HideIcon();
+		}
+	}
+}
+
+void CChromeTrayIcon::OnRestoreByKeyPressed()
+{
+	if(m_bChromeIsHidded)
+	{
+		return;
+	}
+
+	EnterCriticalSection(&m_csWindowsList);
+
+	for(size_t i = 0; i < m_ChromeWindows.size(); ++i)
+	{
+		HWND hWnd = m_ChromeWindows[i].hWnd;
+
+		if(::IsWindowVisible(hWnd) == FALSE)
+		{
+			ShowChromeWindow(hWnd);
+		}
+	}
+
+	LeaveCriticalSection(&m_csWindowsList);
+
+	UpdateIconTooltip(NULL);
 }

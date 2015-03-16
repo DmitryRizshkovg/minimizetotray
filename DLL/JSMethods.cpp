@@ -459,7 +459,7 @@ bool CJSMethods::GetOptions(ChromeTrayIconOptions &options)
 
 				if(CJSValue::GetProperty(pBrowserFuncs, pluginInstance, pArray, "trayHide", strValue))
 				{
-					options.bHideTray = (strValue == _T("true"));
+					options.bHideTrayIfNowWindows = (strValue == _T("true"));
 				}
 
 				if(CJSValue::GetProperty(pBrowserFuncs, pluginInstance, pArray, "actLClick", strValue))
@@ -533,6 +533,34 @@ bool CJSMethods::GetOptions(ChromeTrayIconOptions &options)
 				if(CJSValue::GetProperty(pBrowserFuncs, pluginInstance, pArray, "bossHideTrayIcon", strValue))
 				{
 					options.bBossHideTrayIcon = (strValue == _T("true"));
+				}
+
+				//////////////////////////////////////////////////////////////////////////
+				// Restore by hotkey
+				//////////////////////////////////////////////////////////////////////////
+
+				if(CJSValue::GetProperty(pBrowserFuncs, pluginInstance, pArray, "enableRestoreAllHotkey", strValue))
+				{
+					options.bEnableRestoreByKey = (strValue == _T("true"));
+				}
+
+				if(CJSValue::GetProperty(pBrowserFuncs, pluginInstance, pArray, "restoreAllHotkeyMod1", strValue))
+				{
+					options.wRestoreByKeyModifier = StringToKey(strValue.c_str());
+				}
+
+				if(CJSValue::GetProperty(pBrowserFuncs, pluginInstance, pArray, "restoreAllHotkeyMod2", strValue))
+				{
+					options.wRestoreByKeyModifier |= StringToKey(strValue.c_str());
+				}
+
+				if(CJSValue::GetProperty(pBrowserFuncs, pluginInstance, pArray, "restoreAllHotkeyKey", strValue))
+				{
+					if(strValue.empty() == FALSE)
+					{
+						transform(strValue.begin(), strValue.end(), strValue.begin(), toupper);
+						options.wRestoreByKeyKey = (WORD)strValue[0];
+					}
 				}
 			}
 		}

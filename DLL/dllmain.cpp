@@ -62,6 +62,13 @@ NPError SetWindow(NPP instance, NPWindow *window)
 	return NPERR_NO_ERROR;
 }
 
+NPError Destroy(NPP instance, NPSavedData **save) 
+{
+	g_ChromeTrayIcon.DestroyTrayIcon();
+
+	return NPERR_NO_ERROR;
+}
+
 NPError GetValue(NPP instance, NPPVariable variable, void *value)
 {
 	switch (variable) 
@@ -107,7 +114,7 @@ NPError WINAPI NP_GetEntryPoints(NPPluginFuncs* pFuncs)
 	g_PluginFuncs = pFuncs;
 
 	pFuncs->newp			= StubNewInstance;
-	pFuncs->destroy			= StubDestroy;
+	pFuncs->destroy			= Destroy;
 	pFuncs->setwindow		= SetWindow;
 	pFuncs->newstream		= StubNewStream;
 	pFuncs->destroystream	= StubDestroyStream;

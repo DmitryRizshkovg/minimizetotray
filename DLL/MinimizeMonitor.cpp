@@ -13,7 +13,7 @@ DWORD CMinimizeMonitor::MonitoringThread()
 {
 	POINT	cursor;
 
-	DWORD	waitDelay = 5;
+	DWORD	waitDelay = 2;
 
 	DWORD	keys[]	= {VK_LBUTTON, VK_RBUTTON};
 	DWORD	mouseButton;
